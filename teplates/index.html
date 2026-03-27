@@ -75,12 +75,38 @@
                 return div.innerHTML;
             }
 
-            function renderMarkedSource(markedText) {
-                // Escape all HTML first, then replace the escaped marker tags with styled spans
-                let safe = escapeHtml(markedText);
-                safe = safe.replace(/&lt;Marked&gt;/gi, '<span class="marked-text">');
-                safe = safe.replace(/&lt;\/Marked&gt;/gi, '</span>');
-                return safe;
+            function extractMarkedSegments(markedText) {
+                // Extract the text content between <Marked> and </Marked> tags
+                const segments = [];
+                const regex = /<Marked>([\s\S]*?)<\/Marked>/gi;
+                let match;
+                while ((match = regex.exec(markedText)) !== null) {
+                    const text = match[1].trim();
+                    if (text) segments.push(text);
+                }
+                return segments;
+            }
+
+            function highlightInSource(sourceText, segments) {
+                // Highlight all marked segments within the full source text
+                if (!segments.length) return escapeHtml(sourceText);
+
+                // Escape regex special chars in segments, sort longest first to avoid partial matches
+                const escaped = segments
+                    .sort((a, b) => b.length - a.length)
+                    .map(s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+                const regex = new RegExp('(' + escaped.join('|') + ')', 'gi');
+
+                const parts = sourceText.split(regex);
+                let html = '';
+                for (const part of parts) {
+                    if (segments.some(s => s.toLowerCase() === part.toLowerCase())) {
+                        html += '<span class="marked-text">' + escapeHtml(part) + '</span>';
+                    } else {
+                        html += escapeHtml(part);
+                    }
+                }
+                return html;
             }
 
             async function saveResponse(userResponse) {
@@ -136,14 +162,21 @@
                     elements.agentAnswer.value = data.record?.response_text || '';
                     elements.llmOpinion.value = data.llm_review?.reasoning || 'LLM review not available.';
 
-                    // Use marked_source_data from LLM if available, otherwise fall back to raw source
+                    // Always display the full source data, with marked highlights if available
+                    const originalSource = data.record?.customer_json_data || 'Not available';
+                    let sourceJson = originalSource;
+                    try {
+                        sourceJson = JSON.stringify(JSON.parse(originalSource), null, 2);
+                    } catch(e) {
+                        // If not valid JSON, try to format it: unescape \\n to real newlines
+                        sourceJson = originalSource.replace(/\\n/g, '\n').replace(/\\t/g, '\t');
+                    }
+
                     const markedSource = data.llm_review?.marked_source_data;
                     if (markedSource) {
-                        elements.sourceData.innerHTML = renderMarkedSource(markedSource);
+                        const segments = extractMarkedSegments(markedSource);
+                        elements.sourceData.innerHTML = highlightInSource(sourceJson, segments);
                     } else {
-                        const originalSource = data.record?.customer_json_data || 'Not available';
-                        let sourceJson = originalSource;
-                        try { sourceJson = JSON.stringify(JSON.parse(originalSource), null, 2); } catch(e) {}
                         elements.sourceData.textContent = sourceJson;
                     }
 
