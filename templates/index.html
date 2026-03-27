@@ -9,12 +9,13 @@
 </head>
 <body>
     <div class="banner-wrapper">
-        <img src="{{ url_for('static', filename='banner.jpg') }}" alt="Banner" class="banner-img">
+        <img src="{{ url_for('static', filename='banner.jpg') }}" alt="HSBC Banner" class="banner-img">
     </div>
-    <div class="container-fluid px-5 py-4">
+
+    <div class="main-content">
         <header class="header">
             <h1>Prep-Pack Magic Reviewer</h1>
-            <h2>CMB UK Data and analytics</h2>
+            <h2>CMB UK Data and Analytics</h2>
         </header>
 
         <div class="date-range-section">
@@ -28,7 +29,7 @@
                     <input type="date" id="end-date" class="form-control">
                 </div>
                 <div class="col-auto">
-                    <button id="fetch-btn" class="btn btn-dark">Get Record</button>
+                    <button id="fetch-btn" class="btn btn-hsbc">Get Record</button>
                 </div>
             </div>
         </div>
@@ -58,15 +59,22 @@
         </div>
 
         <div class="row mt-4">
-            <div class="col-12"><div class="card llm-card"><div class="card-body"><h5 class="card-title">LLM review Opinion</h5><textarea id="llm-opinion" class="text-display-area" readonly></textarea></div></div></div>
+            <div class="col-12">
+                <div class="card llm-card">
+                    <div class="card-body">
+                        <h5 class="card-title">LLM Review Opinion</h5>
+                        <textarea id="llm-opinion" class="text-display-area" readonly></textarea>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="validation-section">
-            <p>Do you think the agent answer is correct</p>
+            <p>Do you think the agent answer is correct?</p>
             <div class="btn-group">
-                <button id="yes-btn" class="btn btn-outline-dark">Yes</button>
-                <button id="no-btn" class="btn btn-outline-dark">No</button>
-                <button id="another-btn" class="btn btn-dark">Get another record</button>
+                <button id="yes-btn" class="btn btn-outline-success">Yes</button>
+                <button id="no-btn" class="btn btn-outline-danger">No</button>
+                <button id="another-btn" class="btn btn-dark">Get Another Record</button>
             </div>
             <p id="feedback-message" class="mt-3"></p>
         </div>
@@ -93,7 +101,6 @@
             elements.startDate.value = yesterday.toISOString().split('T')[0];
             elements.endDate.value = today.toISOString().split('T')[0];
 
-            // Current record metadata for saving responses
             let currentRecord = {};
 
             function escapeHtml(text) {
