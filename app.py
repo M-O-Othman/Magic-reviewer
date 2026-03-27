@@ -3,8 +3,7 @@ import subprocess
 import json
 import locale
 from flask import Flask, render_template, jsonify, request
-from google import genai
-from google.genai.types import HttpOptions
+import google.generativeai as genai
 from dotenv import load_dotenv
 
 # --- 1. Load environment variables ---
@@ -101,13 +100,11 @@ Respond with only a single JSON object containing three keys:
 
 """
     try:
-        http_options = HttpOptions(api_version="v1")
-        client = genai.Client(vertexai=True, project=LLM_DEV_PROJECT, location=LLM_LOCATION, http_options=http_options)
-
-        response = client.models.generate_content(
-            model=LLM_MODEL,
-            contents=prompt
-        )
+        import vertexai
+        from vertexai.generative_models import GenerativeModel
+        vertexai.init(project=LLM_DEV_PROJECT, location=LLM_LOCATION)
+        model = GenerativeModel(LLM_MODEL)
+        response = model.generate_content(prompt)
 
         llm_text = response.text
         json_start = llm_text.find('{')
