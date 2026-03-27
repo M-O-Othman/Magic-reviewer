@@ -15,6 +15,11 @@ body { background-color: var(--background-color); color: var(--text-color); }
 .header h1 { font-size: 26px; font-weight: 700; margin: 0 0 5px 0; }
 .header h2 { font-size: 16px; font-weight: 400; margin: 0; color: var(--subtle-text); }
 
+/* Date Range Section */
+.date-range-section { margin-bottom: 2rem; }
+.date-range-section .form-label { font-size: 11px; font-weight: 600; color: var(--subtle-text); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+.date-range-section .form-control { font-size: 14px; border-color: var(--border-color); }
+
 .meta-grid { margin-bottom: 2.5rem; }
 .meta-item label { font-size: 11px; font-weight: 600; margin-bottom: 8px; color: var(--subtle-text); text-transform: uppercase; letter-spacing: 0.5px; }
 .meta-value { font-weight: 500; font-size: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color); min-height: 1.4em; word-break: break-all; }

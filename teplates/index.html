@@ -14,6 +14,22 @@
             <h2>CMB UK Data and analytics</h2>
         </header>
 
+        <div class="date-range-section">
+            <div class="row align-items-end g-3">
+                <div class="col-auto">
+                    <label for="start-date" class="form-label">From</label>
+                    <input type="date" id="start-date" class="form-control">
+                </div>
+                <div class="col-auto">
+                    <label for="end-date" class="form-label">To</label>
+                    <input type="date" id="end-date" class="form-control">
+                </div>
+                <div class="col-auto">
+                    <button id="fetch-btn" class="btn btn-dark">Get Record</button>
+                </div>
+            </div>
+        </div>
+
         <div class="row meta-grid gx-5">
             <div class="col-6 col-sm-4 col-md-2 meta-item"><label>SESSION_ID</label><div class="meta-value" id="session_id"></div></div>
             <div class="col-6 col-sm-4 col-md-2 meta-item"><label>TURN_POSITION</label><div class="meta-value" id="turn_position"></div></div>
@@ -37,7 +53,7 @@
                 </div>
             </div>
         </div>
-        
+
         <div class="row mt-4">
             <div class="col-12"><div class="card llm-card"><div class="card-body"><h5 class="card-title">LLM review Opinion</h5><textarea id="llm-opinion" class="text-display-area" readonly></textarea></div></div></div>
         </div>
@@ -63,8 +79,16 @@
                 sourceData: getEl('source-data'),
                 sourceDataCard: getEl('source-data-card'),
                 llmOpinion: getEl('llm-opinion'), llmCard: document.querySelector('.llm-card'),
-                anotherBtn: getEl('another-btn'), feedbackMsg: getEl('feedback-message')
+                fetchBtn: getEl('fetch-btn'), anotherBtn: getEl('another-btn'), feedbackMsg: getEl('feedback-message'),
+                startDate: getEl('start-date'), endDate: getEl('end-date')
             };
+
+            // Set default date range: yesterday to today
+            const today = new Date();
+            const yesterday = new Date(today);
+            yesterday.setDate(today.getDate() - 1);
+            elements.startDate.value = yesterday.toISOString().split('T')[0];
+            elements.endDate.value = today.toISOString().split('T')[0];
 
             // Current record metadata for saving responses
             let currentRecord = {};
@@ -76,7 +100,6 @@
             }
 
             function extractMarkedSegments(markedText) {
-                // Extract the text content between <Marked> and </Marked> tags
                 const segments = [];
                 const regex = /<Marked>([\s\S]*?)<\/Marked>/gi;
                 let match;
@@ -88,10 +111,8 @@
             }
 
             function highlightInSource(sourceText, segments, isCorrect) {
-                // Highlight all marked segments within the full source text
                 if (!segments.length) return escapeHtml(sourceText);
 
-                // Escape regex special chars in segments, sort longest first to avoid partial matches
                 const escaped = segments
                     .sort((a, b) => b.length - a.length)
                     .map(s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
@@ -131,19 +152,28 @@
             }
 
             async function fetchAndDisplayRecord() {
+                const startDate = elements.startDate.value;
+                const endDate = elements.endDate.value;
+
+                if (!startDate || !endDate) {
+                    elements.feedbackMsg.textContent = 'Please select both start and end dates.';
+                    elements.feedbackMsg.className = 'mt-3 text-danger';
+                    return;
+                }
+
                 elements.feedbackMsg.className = 'mt-3';
                 elements.feedbackMsg.textContent = 'Loading new record...';
+                elements.fetchBtn.disabled = true;
                 elements.anotherBtn.disabled = true;
 
                 try {
-                    const response = await fetch('/get-record');
+                    const response = await fetch(`/get-record?start_date=${startDate}&end_date=${endDate}`);
                     const data = await response.json();
 
                     if (!response.ok || data.error) throw new Error(data.error || `Server responded with status: ${response.status}`);
 
                     elements.feedbackMsg.textContent = '';
 
-                    // Store current record metadata
                     currentRecord = {
                         session_id: data.record?.session_id,
                         turn_position: data.record?.turn_position,
@@ -163,13 +193,11 @@
                     elements.agentAnswer.value = data.record?.response_text || '';
                     elements.llmOpinion.value = data.llm_review?.reasoning || 'LLM review not available.';
 
-                    // Always display the full source data, with marked highlights if available
                     const originalSource = data.record?.customer_json_data || 'Not available';
                     let sourceJson = originalSource;
                     try {
                         sourceJson = JSON.stringify(JSON.parse(originalSource), null, 2);
                     } catch(e) {
-                        // If not valid JSON, try to format it: unescape \\n to real newlines
                         sourceJson = originalSource.replace(/\\n/g, '\n').replace(/\\t/g, '\t');
                     }
 
@@ -182,7 +210,6 @@
                         elements.sourceData.textContent = sourceJson;
                     }
 
-                    // LLM verdict border styling
                     const verdict = data.llm_review?.is_correct;
                     elements.llmCard.classList.remove('correct', 'incorrect');
                     elements.sourceDataCard.classList.remove('highlight-border');
@@ -199,10 +226,12 @@
                     elements.feedbackMsg.textContent = `Error: ${error.message}`;
                     elements.feedbackMsg.className = 'mt-3 text-danger';
                 } finally {
+                    elements.fetchBtn.disabled = false;
                     elements.anotherBtn.disabled = false;
                 }
             }
 
+            getEl('fetch-btn').addEventListener('click', fetchAndDisplayRecord);
             getEl('another-btn').addEventListener('click', () => {
                 saveResponse('Skip');
                 fetchAndDisplayRecord();
@@ -217,8 +246,6 @@
                 elements.feedbackMsg.textContent = "Thank you for your feedback!";
                 elements.feedbackMsg.className = 'mt-3 text-success';
             });
-
-            fetchAndDisplayRecord();
         });
     </script>
 </body>

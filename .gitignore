@@ -1,0 +1,5 @@
+.env
+user_response.json
+__pycache__/
+*.pyc
+*.zip
