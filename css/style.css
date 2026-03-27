@@ -1,0 +1,80 @@
+/* === Final, Bulletproof Theming - Simple & Reliable === */
+:root {
+    --hsbc-red: #db0011;
+    --background-color: #f7f7f7;
+    --text-color: #1a1a1a;
+    --subtle-text: #5f5f5f;
+    --border-color: #e6e6e6;
+    --success-green: #007f3b;
+    --highlight-yellow: #fff8c4;
+    --font-mono: 'SF Mono', 'Courier New', 'DejaVu Sans Mono', monospace;
+}
+
+body { background-color: var(--background-color); color: var(--text-color); }
+.header { margin-bottom: 2.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); }
+.header h1 { font-size: 26px; font-weight: 700; margin: 0 0 5px 0; }
+.header h2 { font-size: 16px; font-weight: 400; margin: 0; color: var(--subtle-text); }
+
+.meta-grid { margin-bottom: 2.5rem; }
+.meta-item label { font-size: 11px; font-weight: 600; margin-bottom: 8px; color: var(--subtle-text); text-transform: uppercase; letter-spacing: 0.5px; }
+.meta-value { font-weight: 500; font-size: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color); min-height: 1.4em; word-break: break-all; }
+
+.card {
+    border: 1px solid var(--border-color);
+    box-shadow: none;
+    padding: 1rem 1.25rem;
+    transition: border-color 0.3s ease;
+}
+.card-body { padding: 0; display: flex; flex-direction: column; height: 100%; }
+.card-title { font-size: 14px; font-weight: 700; color: var(--text-color); margin-bottom: 1rem; }
+
+/* === Styling for text display areas === */
+.text-display-area {
+    width: 100%;
+    flex: 1 1 auto;
+    padding: 10px;
+    margin: 0;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    outline: none;
+    resize: none;
+    background-color: #fff;
+    font-size: 14px;
+    line-height: 1.6;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+#source-data {
+    font-family: var(--font-mono);
+    white-space: pre;
+    overflow: auto;
+}
+
+/* Fixed pixel heights for the parent cards - never change on content load */
+.content-card { height: 260px; min-height: 260px; max-height: 260px; }
+.large-card { height: 544px; min-height: 544px; max-height: 544px; }
+
+/* === Marked text highlight inside source data === */
+.marked-text {
+    background-color: var(--highlight-yellow);
+    color: var(--hsbc-red);
+    font-weight: bold;
+    border-radius: 3px;
+    padding: 0 2px;
+}
+
+/* LLM Review Card - fixed height */
+.llm-card { border-width: 2px; border-color: var(--border-color); background-color: #f7f7f7; height: 180px; min-height: 180px; max-height: 180px; }
+.llm-card .text-display-area { flex: 1 1 auto; overflow: auto; }
+.llm-card.correct { border-color: var(--success-green) !important; }
+.llm-card.incorrect { border-color: var(--hsbc-red) !important; }
+
+/* Validation Section */
+.validation-section { text-align: center; margin-top: 2.5rem; padding-top: 2rem; border-top: 1px solid var(--border-color); }
+.validation-section > p { font-size: 18px; font-weight: 600; color: var(--hsbc-red); margin-bottom: 1.5rem; }
+.btn-dark { background-color: var(--text-color); border-color: var(--text-color); }
+.btn-dark:hover { background-color: #333; border-color: #333; }
+.btn:disabled { cursor: not-allowed; }
+.text-danger { color: var(--hsbc-red) !important; }
+.text-success { color: var(--success-green) !important; }

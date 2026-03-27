@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prep-Pack Magic Reviewer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container-fluid px-5 py-4">
+        <header class="header">
+            <h1>Prep-Pack Magic Reviewer</h1>
+            <h2>CMB UK Data and analytics</h2>
+        </header>
+
+        <div class="row meta-grid gx-5">
+            <div class="col-md-2 meta-item"><label>SESSION_ID</label><div class="meta-value" id="session_id"></div></div>
+            <div class="col-md-2 meta-item"><label>TURN_POSITION</label><div class="meta-value" id="turn_position"></div></div>
+            <div class="col-md-2 meta-item"><label>CUSTOMER_ID</label><div class="meta-value" id="customer_id"></div></div>
+            <div class="col-md-2 meta-item"><label>USER_EMAIL</label><div class="meta-value" id="user_email"></div></div>
+            <div class="col-md-2 meta-item"><label>RESPONSE_SOURCE</label><div class="meta-value" id="response_source"></div></div>
+            <div class="col-md-2 meta-item"><label>LOOKUP_STATUS</label><div class="meta-value" id="lookup_status"></div></div>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-lg-5 d-flex flex-column">
+                <div class="card content-card mb-4"><div class="card-body"><h5 class="card-title">User Question</h5><textarea id="user-question" class="text-display-area" readonly></textarea></div></div>
+                <div class="card content-card"><div class="card-body"><h5 class="card-title">Agent Answer</h5><textarea id="agent-answer" class="text-display-area" readonly></textarea></div></div>
+            </div>
+            <div class="col-lg-7 d-flex flex-column">
+                <div id="source-data-card" class="card large-card">
+                    <div class="card-body">
+                        <h5 class="card-title">Source Data</h5>
+                        <div id="source-data" class="text-display-area"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-4">
+            <div class="col-12"><div class="card llm-card"><div class="card-body"><h5 class="card-title">LLM review Opinion</h5><textarea id="llm-opinion" class="text-display-area" readonly></textarea></div></div></div>
+        </div>
+
+        <div class="validation-section">
+            <p>Do you think the agent answer is correct</p>
+            <div class="btn-group">
+                <button id="yes-btn" class="btn btn-outline-dark">Yes</button>
+                <button id="no-btn" class="btn btn-outline-dark">No</button>
+                <button id="another-btn" class="btn btn-dark">Get another record</button>
+            </div>
+            <p id="feedback-message" class="mt-3"></p>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const getEl = id => document.getElementById(id);
+            const elements = {
+                sessionId: getEl('session_id'), turnPosition: getEl('turn_position'), customerId: getEl('customer_id'),
+                userEmail: getEl('user_email'), responseSource: getEl('response_source'), lookupStatus: getEl('lookup_status'),
+                userQuestion: getEl('user-question'), agentAnswer: getEl('agent-answer'),
+                sourceData: getEl('source-data'),
+                sourceDataCard: getEl('source-data-card'),
+                llmOpinion: getEl('llm-opinion'), llmCard: document.querySelector('.llm-card'),
+                anotherBtn: getEl('another-btn'), feedbackMsg: getEl('feedback-message')
+            };
+
+            // Current record metadata for saving responses
+            let currentRecord = {};
+
+            function escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            function renderMarkedSource(markedText) {
+                // Escape all HTML first, then replace the escaped marker tags with styled spans
+                let safe = escapeHtml(markedText);
+                safe = safe.replace(/&lt;Marked&gt;/gi, '<span class="marked-text">');
+                safe = safe.replace(/&lt;\/Marked&gt;/gi, '</span>');
+                return safe;
+            }
+
+            async function saveResponse(userResponse) {
+                try {
+                    await fetch('/save-response', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            session_id: currentRecord.session_id || '',
+                            turn_position: currentRecord.turn_position || '',
+                            customer_id: currentRecord.customer_id || '',
+                            user_email: currentRecord.user_email || '',
+                            response_source: currentRecord.response_source || '',
+                            lookup_status: currentRecord.lookup_status || '',
+                            user_response: userResponse
+                        })
+                    });
+                } catch (e) {
+                    console.error('Failed to save response:', e);
+                }
+            }
+
+            async function fetchAndDisplayRecord() {
+                elements.feedbackMsg.className = 'mt-3';
+                elements.feedbackMsg.textContent = 'Loading new record...';
+                elements.anotherBtn.disabled = true;
+
+                try {
+                    const response = await fetch('/get-record');
+                    const data = await response.json();
+
+                    if (!response.ok || data.error) throw new Error(data.error || `Server responded with status: ${response.status}`);
+
+                    elements.feedbackMsg.textContent = '';
+
+                    // Store current record metadata
+                    currentRecord = {
+                        session_id: data.record?.session_id,
+                        turn_position: data.record?.turn_position,
+                        customer_id: data.record?.customer_id,
+                        user_email: data.record?.user_email,
+                        response_source: data.record?.response_source,
+                        lookup_status: data.record?.lookup_status
+                    };
+
+                    elements.sessionId.textContent = currentRecord.session_id || 'N/A';
+                    elements.turnPosition.textContent = currentRecord.turn_position || 'N/A';
+                    elements.customerId.textContent = currentRecord.customer_id || 'N/A';
+                    elements.userEmail.textContent = currentRecord.user_email || 'N/A';
+                    elements.responseSource.textContent = currentRecord.response_source || 'N/A';
+                    elements.lookupStatus.textContent = currentRecord.lookup_status || 'N/A';
+                    elements.userQuestion.value = data.record?.req || '';
+                    elements.agentAnswer.value = data.record?.response_text || '';
+                    elements.llmOpinion.value = data.llm_review?.reasoning || 'LLM review not available.';
+
+                    // Use marked_source_data from LLM if available, otherwise fall back to raw source
+                    const markedSource = data.llm_review?.marked_source_data;
+                    if (markedSource) {
+                        elements.sourceData.innerHTML = renderMarkedSource(markedSource);
+                    } else {
+                        const originalSource = data.record?.customer_json_data || 'Not available';
+                        let sourceJson = originalSource;
+                        try { sourceJson = JSON.stringify(JSON.parse(originalSource), null, 2); } catch(e) {}
+                        elements.sourceData.textContent = sourceJson;
+                    }
+
+                    // LLM verdict border styling
+                    const verdict = data.llm_review?.is_correct;
+                    elements.llmCard.classList.remove('correct', 'incorrect');
+                    elements.sourceDataCard.classList.remove('highlight-border');
+
+                    if (verdict === true) {
+                        elements.llmCard.classList.add('correct');
+                        elements.sourceDataCard.classList.add('highlight-border');
+                    } else if (verdict === false) {
+                        elements.llmCard.classList.add('incorrect');
+                        elements.sourceDataCard.classList.add('highlight-border');
+                    }
+
+                } catch (error) {
+                    elements.feedbackMsg.textContent = `Error: ${error.message}`;
+                    elements.feedbackMsg.className = 'mt-3 text-danger';
+                } finally {
+                    elements.anotherBtn.disabled = false;
+                }
+            }
+
+            getEl('another-btn').addEventListener('click', () => {
+                saveResponse('Skip');
+                fetchAndDisplayRecord();
+            });
+            getEl('yes-btn').addEventListener('click', () => {
+                saveResponse('YES');
+                elements.feedbackMsg.textContent = "Thank you for your feedback!";
+                elements.feedbackMsg.className = 'mt-3 text-success';
+            });
+            getEl('no-btn').addEventListener('click', () => {
+                saveResponse('NO');
+                elements.feedbackMsg.textContent = "Thank you for your feedback!";
+                elements.feedbackMsg.className = 'mt-3 text-success';
+            });
+
+            fetchAndDisplayRecord();
+        });
+    </script>
+</body>
+</html>
