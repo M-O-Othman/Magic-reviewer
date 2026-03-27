@@ -87,7 +87,7 @@
                 return segments;
             }
 
-            function highlightInSource(sourceText, segments) {
+            function highlightInSource(sourceText, segments, isCorrect) {
                 // Highlight all marked segments within the full source text
                 if (!segments.length) return escapeHtml(sourceText);
 
@@ -97,11 +97,12 @@
                     .map(s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
                 const regex = new RegExp('(' + escaped.join('|') + ')', 'gi');
 
+                const markClass = isCorrect ? 'marked-text correct' : 'marked-text';
                 const parts = sourceText.split(regex);
                 let html = '';
                 for (const part of parts) {
                     if (segments.some(s => s.toLowerCase() === part.toLowerCase())) {
-                        html += '<span class="marked-text">' + escapeHtml(part) + '</span>';
+                        html += '<span class="' + markClass + '">' + escapeHtml(part) + '</span>';
                     } else {
                         html += escapeHtml(part);
                     }
@@ -173,9 +174,10 @@
                     }
 
                     const markedSource = data.llm_review?.marked_source_data;
+                    const isCorrect = data.llm_review?.is_correct === true;
                     if (markedSource) {
                         const segments = extractMarkedSegments(markedSource);
-                        elements.sourceData.innerHTML = highlightInSource(sourceJson, segments);
+                        elements.sourceData.innerHTML = highlightInSource(sourceJson, segments, isCorrect);
                     } else {
                         elements.sourceData.textContent = sourceJson;
                     }

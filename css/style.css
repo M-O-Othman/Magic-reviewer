@@ -100,12 +100,18 @@ body { background-color: var(--background-color); color: var(--text-color); }
 }
 
 /* === Marked text highlight inside source data === */
+/* Incorrect verdict: bold red on yellow */
 .marked-text {
     background-color: var(--highlight-yellow);
     color: var(--hsbc-red);
     font-weight: bold;
     border-radius: 3px;
     padding: 0 2px;
+}
+/* Correct verdict: bold white on dark green */
+.marked-text.correct {
+    background-color: var(--success-green);
+    color: #ffffff;
 }
 
 /* LLM Review Card - fixed height */
