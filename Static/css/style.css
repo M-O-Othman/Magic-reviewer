@@ -43,8 +43,8 @@ body {
     width: 100%;
     height: auto;
     display: block;
-    max-height: 120px;
-    object-fit: cover;
+    max-height: 230px;
+    object-fit: scale-down;
 }
 
 /* === Header === */

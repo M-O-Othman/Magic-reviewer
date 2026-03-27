@@ -220,6 +220,16 @@
                         elements.sourceData.textContent = sourceJson;
                     }
 
+                    // Auto-scroll to first marked item, or to the end if none
+                    setTimeout(() => {
+                        const firstMark = elements.sourceData.querySelector('.marked-text');
+                        if (firstMark) {
+                            firstMark.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                        } else {
+                            elements.sourceData.scrollTop = elements.sourceData.scrollHeight;
+                        }
+                    }, 100);
+
                     const verdict = data.llm_review?.is_correct;
                     elements.llmCard.classList.remove('correct', 'incorrect');
                     elements.sourceDataCard.classList.remove('highlight-border');

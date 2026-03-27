@@ -1,6 +1,7 @@
 # Magic Reviewer
 
-A Flask web application for reviewing and validating AI agent responses against ground truth customer data. It fetches conversation records from BigQuery, uses an LLM (Gemini) to evaluate answer correctness, and presents everything in a reviewer-friendly UI with highlighted source data.
+An application for reviewing and validating AI agent responses against ground truth customer data. 
+It fetches a random conversation records from BigQuery, uses an LLM (Gemini) to evaluate answer correctness, and presents everything in a reviewer-friendly UI with highlighted source data.
 
 ## Features
 
