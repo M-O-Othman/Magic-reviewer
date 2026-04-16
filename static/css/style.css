@@ -320,6 +320,63 @@ body {
 }
 .btn-group { gap: 0.5rem; }
 
+/* === Review Counter === */
+.review-counter {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--hsbc-subtle);
+    background: var(--hsbc-light-grey);
+    border: 1px solid var(--hsbc-border);
+    border-radius: 6px;
+    padding: 6px 14px;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+}
+
+/* === Source Search === */
+.source-search-input {
+    max-width: 220px;
+    font-size: 12px;
+    font-family: var(--font-body);
+    border-color: var(--hsbc-border);
+    border-radius: 6px;
+}
+.source-search-input:focus {
+    border-color: var(--hsbc-red);
+    box-shadow: 0 0 0 3px rgba(219, 0, 17, 0.1);
+}
+.search-highlight {
+    background-color: #ffe066;
+    color: var(--hsbc-black);
+    font-weight: 700;
+    border-radius: 2px;
+    padding: 0 2px;
+}
+
+/* === Reason Input === */
+.reason-container {
+    max-width: 600px;
+    margin: 0 auto;
+    text-align: left;
+}
+.reason-container .form-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--hsbc-subtle);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+}
+.reason-input {
+    font-size: 13px;
+    font-family: var(--font-body);
+    border-color: var(--hsbc-border);
+    border-radius: 6px;
+}
+.reason-input:focus {
+    border-color: var(--hsbc-red);
+    box-shadow: 0 0 0 3px rgba(219, 0, 17, 0.1);
+}
+
 /* === Status Colors === */
 .text-danger { color: var(--hsbc-red) !important; }
 .text-success { color: var(--success-green) !important; }

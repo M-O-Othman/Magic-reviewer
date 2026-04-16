@@ -1,0 +1,113 @@
+
+Glossary|Definition|variants
+customer|Business Banking Customer|client; company; borrower
+CIN|Unique identification number to identify a non-personal profile (i.e. not an individual but an organisation or company). Also known as CIN or BCIN (Business CIN).|"Cust num, Customer Number, Customer Identification Number, BIB Customer ID, BCIN"
+Parent CIN|"The lead CIN of the relationship. This will be one of the CINs in the relationship, where the CIN has income/products, is the highest segment within the group, flagged as the parent on Browser Main Menu."|"Parent CIN, Lead CIN"
+limit|Overdraft and loans limit.|"product limit, credit limit, limit"
+risk_rating|Customer Risk Rating Code known as CRR|crr; credit risk rating; rating; internal rating
+risk_review||crr; credit risk review; risk assessment review
+Customer Identification Number|Unique identification number to identify a non-personal profile (i.e. not an individual but an organisation or company). Also known as CIN or BCIN (Business CIN).|"Custnum, customer number, CUST_NUM, CIN, Customer identification number, Client number, business cin, business customer number"
+Company Name|CMB Business Name/Client Name (of the granula child CIN)/The name customer is registered with the bank|"Business name, busname, Business customer name, Registered business name"
+Segment|"The top-level area of CMB (plus GBM, GPB, non-UK CMB) where the CIN is managed from. Based on CIN to RM to Csotcentre > Portunit linkage. Segment definition based on the Bank's hierarchy in agreement with Finance and segment areas."|"Business segment, segment, customer segment"
+Sub Segment|"Further granular drill down point out particular are of customer is related to (Eg . Business Specialist, Relationship managed, Business banking direct etc.)"|"Sub_segment, sub segment"
+Owning Bank|"The bank that legally owns and is responsible for a particular customer, account, product, relationship, or transaction
+It helps to identify the which split of the bank the customer belongs to (RFB/NRFB/HINV/CIIOM/RBW/GPB)"|"Split of the bank, Bank split, owning institution"
+Current a/c segment (archive_customer)|"Current account segment. This is the tariff of the CINs' ""primary"" account. In most instances a customers' ""primary"" account is a current account, but occasionally it might be another type of product e.g. savings., Cards, loans etc. This is a marker used to derive the customer status (Open or Close)"|Active/inactive status of the customer
+Current a/c segment (Caseg table)|Provides detailed description of each of the CASEG status by which definition of customer status (Open/close) can be derived|
+SIC Code|"1.The SIC (Standard Industrial Classification) code is a 5-digit code that identifies what a business does. For example SIC code 01120 is the code for the growing of rice. The current SIC codes were issued in 2007 and replaced the older SIC 2003 codes. HSBC introduced SIC 2007 codes from 01/01/2011 in order to comply with Bank of England reporting requirements. 
+
+2.The archive.Customeryymm table will hold the SIC code held on Browser Main Menu at the time the data was cut from SAMS"|Industry code 
+SIC Description|"1.The table should be used as a lookup to obtain full text descriptions of the industry classification of each SIC code stored in the SIC field of Archive Customer Table
+
+2.Can be used to support analysis that groups data at an industry level.
+
+3.The FACTORABLE_STATUS field can be used to identify customers in an industry with a propensity for invoice finance.                                                                                                                                                                                                                                 4. industry_desc also known as SECTOR"|"Industry, Industry description"
+Legal Status|"This marker consists of a 2-letter code that denotes the customer type, sometimes (incorrectly) referred to as legal status. "|
+Legal Status Description|"This table would provide details of legal status of each customer and can be grouped into key types such as PLC,SOLE TRADER ,LIMITED etc."|Business type
+Sortcode|Branch of Domicile Sort_code - N.B. this is NOT the sort_code of the RM|"Sortcode, Sort_code, Branch code"
+Tenure|"Number of months that the business has been loaded on to Browser (Months since  Cust_From). Please note that any prospects counted will start from the time they become a prospect, not when they become a customer."|"Customer from (in months), Months with HSBC, Time with bank (in months)"
+Business Start Month|Number of months since the business commenced/was incorporated |"Start month of Business, Business Start Date"
+Customer Post Code|Customer's business address postcode as displayed on Browser Main Menu. This may not be the same as the postcode of any correspondence addresses.|"Postcode, Post_code, Postal code"
+Behaviour Score of Customer|"A form of credit risk rating for portfolio managed customers. Generally a high score equals low risk and a low score equals high risk, with the following exceptions:
+Behavioural Score sourced from SAMS
+0 = Customer for 1 month
+1 = Customer for >1 month but no score calculated yet
+4 = Debit Dormant
+5 = Complex Customers
+30 = Categorised Lending"|"Behaviour score, Behave score of the customer, customer rating"
+Relationship Manager Staff Number (In Cuatomer table)|Relationship managers staff number. Portfolio managed customers will have a generic rmstaffno.|"RM_staffno, Relationship manager no, Relationship Mamanger id, RM ID"
+Relationship Manager Staff Number (in RMS table)|Relationship managers staff number. Portfolio managed customers will have a generic rmstaffno.|
+RM NAME|Surname and initials of relationship Manager.|"RM_staffname, Relationship manager name, Relationship Mamanger name, RM name"
+RM REGION|"It represents the region the RM is attached to.
+
+Offshore centres are given a region of 'OFFSHORE REGION'. A region of 'OTHER' is used for non-CMB centres."|"RM region, Rletionship Manager Region, RM territory, Manager region, RM assigned region"
+RM Department /Area|The department that the RM belongs to. An Area is made up of a number of departments. |"RM department, RM division, Relationship Manager department, RM business unit"
+RM Grade/GCB|Grade/band of employee derived from GRDE_CDE and GROUP_GRDE_CDE fields within UKDWH.DWH_EMPLY|"RM grade, Relationship Manager grade, RM level, RM rank, Manager grade, Client Manager grade"
+RM Job Title|Provides a text description of the RM's job title.|"RM title, RM designation, Relationship Manager designation, Manager designation"
+RM COST Center|"This is the cost centre that the relationship manager reports in to, which in most cases will not be the same as the branch sort_code (see Archive_Customer sort_code entry). Portfolio managed customers will have a generic portunit."|"RM Cost Center, Relationship Manager Cost Center, RM expense Center, RM department cost center, RM cost Center Code"
+Parent CIN (Archive_Custromer)|"The lead CIN of the relationship. This will be one of the CINs in the relationship, where the CIN has income/products, is the highest segment within the group, flagged as the parent on Browser Main Menu."|"Parent Customer Number, Parent Customer ID, Parent client number, PARENT CIN, Primary Customer ID"
+Parent CIN (Archive_Custromer)|"The lead CIN of the relationship. This will be one of the CINs in the relationship, where the CIN has income/products, is the highest segment within the group, flagged as the parent on Browser Main Menu."|"Parent Customer Number, Parent Customer ID, Parent client number, PARENT CIN, Primary Customer ID"
+Parent CIN Segment|"Relationship level segment - segment of lead CIN, with corporate customers split between HORIS and non-HORIS."|"Parent CIN segment, Parent client Segment, Parent account segment, Parent client category"
+UK Relationship/Group Level Turnover|"Group turnover value (�) created from complex rules selecting ""best"" turnover for this relationship. Sources of turnover include D&B (actual & Derived), SAMS, and charges turnover."|"Group level Turnover, Consolidated revenue, Aggregated revenue, Group sales, Overall Turnover"
+Charges Turnover Rolling 12 Month (Child CIN Level)|"12 month rolling charges turnover for customer's current accounts. This is the amount of money going out of the current account, excluding internal transfers."|"Account Last 12 month charges,Account 12 month charges, Account Charges Turnover for last 12 month"
+Charges Turnover Monthly (Child CIN Level)|"Last month's charges turnover for customer's current accounts. This is the amount of money going out of the current account, excluding internal transfers."|"Account Last monthly charges,Account Total charges per month. Account Charges Turnover for last month"
+Credit Turnover|"Total credit turnover in the current accounts (monthly).
+Note: includes credit interest."|"Total Credits, Credit turnover amount, Credit flow,Incoming transactions total"
+Debit Turnover|Total debit turnover of current accounts|"Total debits, Debit Volume, Debit turnover amount, Outgoing transaction total, Debit Flow"
+Savings  Account Balance|Month end savings account balance.|"Savings balance, Account balance- savings, Savings ledger balance, Savings account total, Balance in savings account"
+12-month Rolling Total Income (Parent Level)|Rolling 12 Month's Income as on any given month|"12 month rolling Total Income, Rolling annual Income,Last 12 month income, Annualized rolling revenue "
+12-month Rolling Total Fee Income (Parent Level)|12 month Rolling Fee Income|"12 month rolling Total Fee Income, Rolling annual Fee Income,Last 12 month fee income, Annualized rolling fee"
+12-month Rolling Total Interest Income (Parent Level)|12-month Rolling Interest Income|"12 month rolling Total Interest Income, Rolling annual Interest Income,Last 12 month Interest income, Annualized rolling Interest"
+Year to Date Total Income (Parent Level)|Year to Date Total Income|"YTD income, Year-to-date total income, Year-to-date total revenue, Year-to-date earnings"
+Year to Date Total Fee Income (Parent Level)|Year to Date Fee Income|"YTD fee income, Year-to-date total fee income, Year-to-date total fee, Year-to-date fee"
+Year to Date Total Interest Income (Parent Level)|Year to Date Interest Income|"YTD interest, Year-to-date total interest, Year-to-date total interest income, Year-to-date interest"
+Total Monthly Income (Parent Level)|Total Income in the month|"Parent-level monthly income, Monthly revenue at parent-level, Parent account monthly earnings , Monthly earnings - parent level"
+Total Monthly Fee Income (Parent Level)|Total Fee Income in the month|"Parent-level monthly fee income, Monthly fee revenue at parent level, Parent account monthly fee, Monthly charges income -parent level"
+Total Monthly Interest Income (Parent Level)|Total Interest Income in the month|"Monthly Interest income at parent level, Parent account monthly interest, Aggregated monthly income parent level, Parent-level interest earnings"
+12-month Rolling Total Income (Product Level)|Rolling 12 Month's Income as on any given month|"Product-level rolling 12-month income, 12-month rolling income per product, Product-wise 12-month income"
+YTD Total Income (Product Level)|YTD Income as on any given month|"Product-level YTD income, Year-to-dateincome per product,YTD revenue by product, Prodcut-wise YTD income"
+Monthly Total Income (Product Level)|Monthly Income at imis product level|"Product Level monthly incoem,Monthly revenue per product, Product-wise monthly income,Monthly earning by product"
+IMIS Code /INCOME Grouping CODE/INCOME CODE|Unique identifier for the IMIS code.|"IMIS Code , INCOME Grouping CODE, INCOME CODE, Income Unique Identifier"
+IMIS description /Inc. code description|Description of the IMIS code. Value is used to identify the income and balance type listed in the CIN or group level income and balance information|"IMIS Description, Description of IMIS Code, IMIS Code reference, IMIS Code definition"
+Income Group |"High level grouping, grouping the income_line field into higher level categories."|"Income Group, Incode category, Income segment,Revenue Group"
+Income Line|"Mid level grouping identifying groups that income lines are categorised into.
+Grouping is defined in UKDWH and mirrors that used in the MPS reports."|"Income Line, Revenue Line, Income % wise"
+IMIS Product Start Date|"Field identifying the point at which the starting date at which the record is live within the archive.
+
+The record relates to the first day of the month for the archive refresh. E.g. If the archive for 1409 data is refreshed in October. When the table is updated, the value would be given as 01SEP2014"|"IMIS Product Start Date, IMIS Product  Open Date"
+IMIS Product End Date|"Field identifying the date at which the record stopped being live within the archive.
+
+The record relates to the first day of the month following the  records closure E.g. If the archive for 1409 data is refreshed in October, and this record closes. When the table is updated, the value would be given as 01SEP2014"|"IMIS Product End Date, IMIS Product  Closure Date"
+Average Roll12 M Asset balance|Average rolling 12 month asset balance. Value is rounded to the nearest pound.|"Average 12 month asset, Rolling 12-month average asset, 12-month asset average balance"
+Average Monthly Asset balance|Average asset balance for current month. Value is rounded to the nearest pound.|"Average Monthly Asset balance, Average Monthly portfolio balance, Average monthly asset"
+Average Roll12 M Liability balance|Average rolling 12 month liability balances. Value is rounded to the nearest pound.|"Average 12 month liability, Rolling 12-month average liability, 12-month liability average"
+Average Monthly Liability balance|Average Liability balance for current month. Value is rounded to the nearest pound.|"Average monthly liability, Monthly average liabilty, Average liability balance, Average Monthly outstanding balance"
+Product ID /Prod ID/Account Number|Unique product identifier as held on Browser. Use Data_Year_Month field to get latest records|"Product ID, Product Identifier, Product Code, Product number"
+Product/Account Open Date|Date the product was opened.|"Product Open Date, Product start date, Product activation date,Product opening dtae, Product effective date"
+Product Code known as UCODE|Product Code. This is a more granular 5-digit product code.|"Product Code, Ucode, Ucode Product Identifier"
+UCODE Description|The full text description of the Ucode.|"Ucode description, Code name, Description of Ucode, Ucode label"
+Current Account Marker|Flag that indicates whether Ucode is a Current account product.|"Current Account Marker, Current account flag, Current Account Indicator,CA marker, CA indicator"
+Product type (Ptyp)|"Product type:
+Usually a 3 letter code, but can also be a 3 character combination of letters and numerics."|"Product type, Product Code type, Product Category ID,Product classification"
+Product Status Code|"A Calculated product status sourced from SAMS. It gives an indication of whether the product is active, unused, or has been dormant for a certain period of time."|"Prodcut Status Code, Account Status Code,Product state code"
+Finance Flag|"This data element will contain a value of 'A' for active if the product is an active Invoice Finance product. Any other record will contain a null value. The calculated product status (Calcpdst) has been identified as showing active Invoice Finance products as either closed or dormant, and this finance_flag is used to verify if that calculated product status is accurate."|"Finance Flag, Finance marker,Finance Status flag"
+Product Limit|Overdraft and loans limit.|"Cedit Limit, Lending Limit, OD Limit, Overdraft facility, Loan Cap, Borrowing limit"
+Product Balance|Month end balance calculated from commission and balance variables derived from SAMS. |"Monthly balance, Closing Balance, Balance, Month close Balance, Balance at month end"
+Closed Product ID|Unique product identifier as held on Browser. This is related to account number of the already closed product|"Product ID, Product Identifier, Product Code, Product number"
+Product Closed Date|Date of product closure.|"Product Closed date, Product End date, Product Closure Date"
+BIB Customer ID|BIB Customer ID|"Customer Identifier, Client ID, Customer number, Client number,Customer reference"
+BIB Status (High Level)|BIB Status of a customer|"Primary Status,Main Status, Master Status"
+BIB Status (Lower Level)|Granular level status of BIB activity based on banding created on Last logon date|"Low level status, Granular status, Sub-status"
+Last Logon Date on BIB|Last logon date of a BIB user|"Last login, Last sign in date, Last access date, Last acitvity date, Last visited, Last login date"
+Batch Date|Identifies latest month's data|"Processing Date, Batch date, Run date, Execution Date, Job date, Ingestion Date, Data processing date"
+HSBCNET Profile ID|HSBCNet Profile ID|"Customer Identifier, Client ID, Customer number, Client number,Customer reference"
+HSBCnet profile Name|Name of the HSBCNet Profile|"Customer Name, Client Name, Account Name,Name of Customer"
+HSBCnet Activity Status|Status of HSBCnet Activity of a customer|"Activity status, Activity condition, Account Activity status"
+Last Logon Date on HSBCNet|Last Logon Date of a HSBCNet user|"Last login, Last sign in date, Last access date, Last acitvity date, Last visited, Last login date"
+HSBCNet Profile Country|Country where the HSBCNet profile belongs to|"Country, Country of Customer, Customer country code,Country of residence,Customer domicile"
+HSBCNet Account Number|Accounts associated with HSBCNet Profile|"Account Number, Account ID, Account Identifier, Customer account Number,Client number, Member number"
+HSBCNet Account Status|Activity status of HSBCNet Accounts linked with a profile|"Account status, status, Credit Status, Financial Status, Account Standing"
+Month|Represents the respective month to which the HSBCNet data refers to |"Calendar month, Month period"
+Customer Risk Rating (CRR)|Customer Risk Rating Code known as CRR|"Customer Risk rating, Client risk rating, Customer risk level, Client risk assessment, Risk category"
+
+

@@ -1,25 +1,39 @@
 import os
-import subprocess
+import re
 import json
-import locale
+import logging
+import datetime
+import subprocess
+
 from flask import Flask, render_template, jsonify, request
-import google.generativeai as genai
 from dotenv import load_dotenv
+
+import vertexai
+from vertexai.generative_models import GenerativeModel
 
 # --- 1. Load environment variables ---
 load_dotenv()
 
-# --- 2. Flask App Initialization ---
+# --- 2. Logging ---
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(asctime)s] %(levelname)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger(__name__)
+
+# --- 3. Flask App ---
 app = Flask(__name__)
 
-# --- 3. Configuration from .env ---
-BQ_PROD_PROJECT = os.environ["BQ_PROD_PROJECT"]
-LLM_DEV_PROJECT = os.environ["LLM_DEV_PROJECT"]
-LLM_LOCATION = os.environ["LLM_LOCATION"]
-LLM_MODEL = os.environ["LLM_MODEL"]
-BQ_EXECUTABLE_PATH = os.environ["BQ_EXECUTABLE_PATH"]
-BQ_DATASET = os.environ["BQ_DATASET"]
-CUSTOMER_LOOKUP_TABLE = os.environ["CUSTOMER_LOOKUP_TABLE"]
+# --- 4. Configuration from .env ---
+BQ_PROD_PROJECT = os.environ.get("BQ_PROD_PROJECT", "")
+BQ_EXECUTABLE_PATH = os.environ.get("BQ_EXECUTABLE_PATH", "")
+BQ_DATASET = os.environ.get("BQ_DATASET", "")
+CUSTOMER_LOOKUP_TABLE = os.environ.get("CUSTOMER_LOOKUP_TABLE", "")
+BQ_MANUAL_REVIEW_TABLE = os.environ.get("BQ_MANUAL_REVIEW_TABLE", "")
+LLM_DEV_PROJECT = os.environ.get("LLM_DEV_PROJECT", "")
+LLM_LOCATION = os.environ.get("LLM_LOCATION", "")
+LLM_MODEL = os.environ.get("LLM_MODEL", "")
 FLASK_HOST = os.environ.get("FLASK_HOST", "0.0.0.0")
 FLASK_PORT = int(os.environ.get("FLASK_PORT", "5000"))
 FLASK_DEBUG = os.environ.get("FLASK_DEBUG", "true").lower() == "true"
@@ -31,151 +45,276 @@ if HTTP_PROXY:
 if HTTPS_PROXY:
     os.environ["HTTPS_PROXY"] = HTTPS_PROXY
 
-# --- 4. BigQuery and LLM Logic ---
-BQ_QUERY_TEMPLATE = """
-WITH
-src AS (
-  SELECT REGEXP_EXTRACT(conversation_name, r'sessions/([^/]+)') AS session_id, conversation_name, turn_position, request_time, LOWER(TRIM(LAX_STRING(request.queryParams.parameters.customer_id))) AS customer_id, LOWER(TRIM(LAX_STRING(request.queryParams.parameters.user_id))) AS user_email, LAX_STRING(request.queryInput.text.text) AS req, response.queryResult.responseMessages AS response_messages, response.queryResult.generativeInfo.actionTracingInfo.actions AS actions
-  FROM `{dataset}.prep_packs_agent_conversation_export`
-  WHERE request_time >= TIMESTAMP('{start_date} 00:00:00+00') AND request_time < TIMESTAMP('{end_date} 00:00:00+00')
-),
-per_turn AS (
-  SELECT session_id, turn_position, request_time, customer_id, user_email, req, (SELECT STRING_AGG(LAX_STRING(m.text.text[0]), "\\n") FROM UNNEST(JSON_QUERY_ARRAY(response_messages)) AS m WHERE LAX_STRING(m.source) = 'VIRTUAL_AGENT') AS response_text, (SELECT AS STRUCT ANY_VALUE(JSON_VALUE(a.toolUse.outputActionParameters, '$."200".sessionInfo.parameters.response_source')) AS response_source, ANY_VALUE(JSON_VALUE(a.toolUse.outputActionParameters, '$."200".sessionInfo.parameters.lookup_status')) AS lookup_status FROM UNNEST(JSON_QUERY_ARRAY(actions)) AS a WHERE a.toolUse IS NOT NULL) AS act
-  FROM src
-),
-session_info AS (
-  SELECT session_id, ARRAY_AGG(customer_id IGNORE NULLS ORDER BY request_time LIMIT 1)[OFFSET(0)] AS session_customer_id, ARRAY_AGG(user_email IGNORE NULLS ORDER BY request_time LIMIT 1)[OFFSET(0)] AS session_user_email FROM src GROUP BY session_id
-),
-customer_latest AS (
-  SELECT * EXCEPT(rn) FROM (SELECT a.*, ROW_NUMBER() OVER (PARTITION BY a.customer_id ORDER BY a.snapshot_date DESC) AS rn FROM `{customer_lookup_table}` a) WHERE rn = 1
-)
-SELECT pt.session_id, si.session_customer_id AS customer_id, si.session_user_email AS user_email, pt.req, pt.response_text, pt.act.response_source, pt.act.lookup_status, c.data AS customer_json_data, pt.turn_position, pt.request_time
-FROM per_turn AS pt LEFT JOIN session_info AS si ON pt.session_id = si.session_id LEFT JOIN customer_latest AS c ON SAFE_CAST(si.session_customer_id AS INT64) = c.customer_id
-WHERE pt.act.response_source IS NOT NULL AND pt.act.lookup_status IS NOT NULL ORDER BY RAND() LIMIT 1;
-"""
 
-def fetch_one_record_from_bigquery(start_date, end_date):
-    query = BQ_QUERY_TEMPLATE.format(
-        dataset=BQ_DATASET,
-        customer_lookup_table=CUSTOMER_LOOKUP_TABLE,
-        start_date=start_date,
-        end_date=end_date
+# --- 5. Startup Validation ---
+def validate_config():
+    """Validate required configuration at startup. Fail fast with clear messages."""
+    required = {
+        "BQ_PROD_PROJECT": BQ_PROD_PROJECT,
+        "BQ_EXECUTABLE_PATH": BQ_EXECUTABLE_PATH,
+        "BQ_DATASET": BQ_DATASET,
+        "BQ_MANUAL_REVIEW_TABLE": BQ_MANUAL_REVIEW_TABLE,
+        "LLM_DEV_PROJECT": LLM_DEV_PROJECT,
+        "LLM_LOCATION": LLM_LOCATION,
+        "LLM_MODEL": LLM_MODEL,
+    }
+    missing = [k for k, v in required.items() if not v]
+    if missing:
+        logger.error("Missing required environment variables: %s", ", ".join(missing))
+        raise SystemExit(1)
+
+    if not os.path.exists(BQ_EXECUTABLE_PATH):
+        logger.error("BQ_EXECUTABLE_PATH does not exist: %s", BQ_EXECUTABLE_PATH)
+        raise SystemExit(1)
+
+    prompt_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "prompts")
+    for fname in ("system_prompt.md", "user_prompt.md"):
+        if not os.path.exists(os.path.join(prompt_dir, fname)):
+            logger.error("Prompt file not found: prompts/%s", fname)
+            raise SystemExit(1)
+
+    logger.info("Configuration validated successfully.")
+
+
+# --- 6. Load Prompts ---
+def load_prompts():
+    """Load system and user prompt templates from external .md files."""
+    prompt_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "prompts")
+    with open(os.path.join(prompt_dir, "system_prompt.md"), encoding="utf-8") as f:
+        system_prompt = f.read()
+    with open(os.path.join(prompt_dir, "user_prompt.md"), encoding="utf-8") as f:
+        user_prompt_template = f.read()
+    return system_prompt, user_prompt_template
+
+
+validate_config()
+SYSTEM_PROMPT, USER_PROMPT_TEMPLATE = load_prompts()
+
+# --- 7. Initialize Vertex AI (once at startup) ---
+vertexai.init(project=LLM_DEV_PROJECT, location=LLM_LOCATION)
+
+# --- 8. LLM Response Cache ---
+_llm_cache = {}
+
+
+# --- 9. BigQuery CLI Helpers ---
+DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def run_bq_query(query):
+    """Execute a BigQuery SQL query via the bq CLI and return parsed JSON rows."""
+    cmd = [
+        BQ_EXECUTABLE_PATH,
+        "query",
+        "--format=json",
+        "--nouse_legacy_sql",
+        "--quiet",
+        query,
+    ]
+    logger.info("Running BQ query via CLI")
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        if result.returncode != 0:
+            error_msg = result.stderr.strip() or "Unknown bq error"
+            logger.error("BQ query failed (exit %d): %s", result.returncode, error_msg)
+            return {"error": f"BQ query failed: {error_msg}"}
+
+        output = result.stdout.strip()
+        if not output or output == "[]":
+            return {"error": "BQ query returned 0 rows."}
+
+        return json.loads(output)
+    except subprocess.TimeoutExpired:
+        logger.error("BQ query timed out after 120 seconds")
+        return {"error": "BQ query timed out."}
+    except json.JSONDecodeError as e:
+        logger.error("Failed to parse BQ JSON output: %s", e)
+        return {"error": f"Failed to parse BQ output: {e}"}
+    except Exception as e:
+        logger.error("Unexpected error running BQ query: %s", e)
+        return {"error": f"Unexpected BQ error: {e}"}
+
+
+def bq_insert_row(table, row_dict):
+    """Insert a single row into a BigQuery table via the bq CLI streaming insert."""
+    json_str = json.dumps(row_dict)
+    cmd = [BQ_EXECUTABLE_PATH, "insert", table]
+    logger.info("Inserting row into %s via BQ CLI", table)
+    try:
+        result = subprocess.run(
+            cmd, input=json_str, capture_output=True, text=True, timeout=60
+        )
+        if result.returncode != 0:
+            error_msg = (
+                result.stderr.strip() or result.stdout.strip() or "Unknown bq insert error"
+            )
+            logger.error("BQ insert failed (exit %d): %s", result.returncode, error_msg)
+            return {"error": f"BQ insert failed: {error_msg}"}
+
+        logger.info("Successfully inserted row into %s", table)
+        return {"status": "ok"}
+    except subprocess.TimeoutExpired:
+        logger.error("BQ insert timed out after 60 seconds")
+        return {"error": "BQ insert timed out."}
+    except Exception as e:
+        logger.error("Unexpected error during BQ insert: %s", e)
+        return {"error": f"Unexpected BQ insert error: {e}"}
+
+
+# --- 10. Data Fetch ---
+def fetch_one_record(start_date, end_date):
+    """
+    Fetch a single random unreviewed record from BigQuery via bq CLI.
+    Filters by session_start date range (inclusive).
+    Excludes records already present in the manual review table.
+    """
+    if not DATE_PATTERN.match(start_date) or not DATE_PATTERN.match(end_date):
+        return {"error": "Invalid date format. Use YYYY-MM-DD."}
+
+    query = (
+        "SELECT "
+        "s.* EXCEPT (conversation_turns), "
+        "turn.*, "
+        "s.customer_json_data "
+        "FROM "
+        f"`{BQ_DATASET}.conversations` AS s, "
+        "UNNEST(s.conversation_turns) AS turn "
+        f"LEFT JOIN `{BQ_MANUAL_REVIEW_TABLE}` AS r "
+        "ON s.session_id = r.SESSION_ID "
+        "AND CAST(turn.turn_position AS STRING) = r.TURN_POSITION "
+        "WHERE "
+        "r.SESSION_ID IS NULL "
+        f"AND s.session_start >= '{start_date}' "
+        f"AND s.session_start <= '{end_date}' "
+        "AND turn.turn_position > 1 "
+        "AND turn.req IS NOT NULL "
+        "AND turn.response_text IS NOT NULL "
+        "AND s.customer_json_data IS NOT NULL "
+        "ORDER BY rand() "
+        "LIMIT 1"
+    )
+
+    result = run_bq_query(query)
+    if isinstance(result, dict) and result.get("error"):
+        return result
+    if isinstance(result, list) and len(result) > 0:
+        logger.info("Fetched 1 record from BigQuery")
+        return result[0]
+    return {"error": "BQ query returned 0 rows."}
+
+
+# --- 11. LLM Analysis ---
+def analyze_groundedness(question, answer, source_data):
+    """Evaluate whether the agent answer is grounded in source data using Gemini."""
+    user_prompt = USER_PROMPT_TEMPLATE.format(
+        question=question,
+        answer=answer,
+        source_data=source_data,
     )
     try:
-        command = [BQ_EXECUTABLE_PATH, "query", "--project_id", BQ_PROD_PROJECT, "--format=json", "--use_legacy_sql=false"]
-        process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        stdout_bytes, stderr_bytes = process.communicate(input=query.encode('utf-8'))
-        system_encoding = locale.getpreferredencoding()
-        stdout = stdout_bytes.decode(system_encoding, errors='ignore')
-        stderr = stderr_bytes.decode(system_encoding, errors='ignore')
-        if process.returncode != 0: return {"error": f"bq command failed: {stderr}"}
-        json_start = stdout.find('[')
-        if json_start == -1: return {"error": "No JSON found in bq output."}
-        data = json.loads(stdout[json_start:])
-        return data[0] if data else {"error": "BQ query returned 0 rows."}
-    except FileNotFoundError: return {"error": f"Server Error: Could not find bq.cmd at {BQ_EXECUTABLE_PATH}. Check BQ_EXECUTABLE_PATH in .env."}
-    except Exception as e: return {"error": f"An unexpected error occurred: {e}"}
-
-def analyze_groundedness_with_gemini(question, answer, source_data):
-    prompt = f"""
-You are a strict data auditor. Your task is to evaluate if the AGENT'S ANSWER is a correct and factually supported response to the USER'S QUESTION, based *strictly* on the provided GROUND TRUTH DATA.
-
-**RULES:**
-- Your evaluation must be based **only** on the information in the `GROUND TRUTH DATA`.
-- If the answer contains information not found in the data, it is INCORRECT.
-- The answer is CORRECT only if every piece of information is directly verifiable from the data.
-
-**DATA FOR EVALUATION:**
-[USER'S QUESTION]: {question}
-[AGENT'S ANSWER]: {answer}
-[GROUND TRUTH DATA]: ```json
-{source_data}
-```
----
-**FINAL OUTPUT:**
-Respond with only a single JSON object containing three keys:
-1. "is_correct": a boolean (`true` or `false`).
-2. "reasoning": a concise, one-sentence explanation for your verdict.
-3. "marked_source_data": an exact replica of the source data with marker tags <Marked> and </Marked> indicating the parts relevant to the question and answer.
-
-"""
-    try:
-        import vertexai
-        from vertexai.generative_models import GenerativeModel
-        vertexai.init(project=LLM_DEV_PROJECT, location=LLM_LOCATION)
-        model = GenerativeModel(LLM_MODEL)
-        response = model.generate_content(prompt)
-
+        model = GenerativeModel(LLM_MODEL, system_instruction=SYSTEM_PROMPT)
+        response = model.generate_content(user_prompt)
         llm_text = response.text
-        json_start = llm_text.find('{')
-        json_end = llm_text.rfind('}')
+        json_start = llm_text.find("{")
+        json_end = llm_text.rfind("}")
         if json_start != -1 and json_end != -1:
-            clean_json_string = llm_text[json_start : json_end + 1]
-            return json.loads(clean_json_string)
-        else:
-            return {"is_correct": None, "reasoning": "Could not parse JSON from LLM response."}
-
+            return json.loads(llm_text[json_start : json_end + 1])
+        logger.warning("Could not extract JSON from LLM response")
+        return {
+            "is_correct": None,
+            "reasoning": f"Could not parse JSON from LLM response: {llm_text}",
+        }
     except Exception as e:
-        print(f"--- LLM EXCEPTION --- Error: {e}")
+        logger.error("LLM API error: %s", e)
         return {"is_correct": None, "reasoning": f"LLM API Error: {e}"}
 
-# --- 5. Flask Routes ---
-@app.route('/')
-def index():
-    return render_template('index.html')
 
-@app.route('/get-record')
+# --- 12. Flask Routes ---
+@app.route("/")
+def index():
+    return render_template("index.html")
+
+
+@app.route("/get-record")
 def get_record():
-    start_date = request.args.get('start_date')
-    end_date = request.args.get('end_date')
+    """Fetch a single random unreviewed record from BigQuery. No LLM call."""
+    start_date = request.args.get("start_date")
+    end_date = request.args.get("end_date")
 
     if not start_date or not end_date:
-        return jsonify({"error": "Please select a date range and click 'Get Record'."}), 400
+        return jsonify({"error": "Select a date range and click Get Record."}), 400
 
-    print(f"--- SERVER: /get-record called with range {start_date} to {end_date} ---")
-    bq_record = fetch_one_record_from_bigquery(start_date, end_date)
+    logger.info("/get-record called for %s to %s", start_date, end_date)
+    record = fetch_one_record(start_date, end_date)
 
-    if bq_record.get("error"):
-        return jsonify({"error": bq_record.get("error")}), 500
+    if record.get("error"):
+        return jsonify({"error": record["error"]}), 500
 
-    llm_evaluation = {"is_correct": None, "reasoning": "Data missing for LLM review."}
-    if bq_record.get('req') and bq_record.get('response_text') and bq_record.get('customer_json_data'):
-        llm_evaluation = analyze_groundedness_with_gemini(bq_record['req'], bq_record['response_text'], bq_record['customer_json_data'])
+    return jsonify({"record": record})
 
-    full_data = {
-        "record": bq_record,
-        "llm_review": llm_evaluation
-    }
-    print("--- SERVER: Successfully prepared data. Sending to frontend. ---")
-    return jsonify(full_data)
 
-RESPONSE_LOG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "user_response.json")
-
-@app.route('/save-response', methods=['POST'])
-def save_response():
+@app.route("/llm-review", methods=["POST"])
+def llm_review():
+    """Run LLM groundedness analysis on a record. Returns evaluation JSON."""
     data = request.get_json()
-    entry = {
+    question = data.get("req", "")
+    answer = data.get("response_text", "")
+    source_data = data.get("customer_json_data", "")
+    session_id = data.get("session_id", "")
+    turn_position = str(data.get("turn_position", ""))
+
+    if not question or not answer or not source_data:
+        return jsonify({"is_correct": None, "reasoning": "Missing data for LLM review."}), 400
+
+    cache_key = (session_id, turn_position)
+    if session_id and turn_position and cache_key in _llm_cache:
+        logger.info("LLM cache hit for session %s turn %s", session_id, turn_position)
+        return jsonify(_llm_cache[cache_key])
+
+    logger.info("Running LLM review for session %s turn %s", session_id, turn_position)
+    evaluation = analyze_groundedness(question, answer, source_data)
+
+    if session_id and turn_position:
+        _llm_cache[cache_key] = evaluation
+
+    return jsonify(evaluation)
+
+
+@app.route("/save-response", methods=["POST"])
+def save_response():
+    """Save reviewer feedback and LLM verdict to BigQuery via bq CLI."""
+    data = request.get_json()
+    row = {
         "SESSION_ID": data.get("session_id", ""),
-        "TURN_POSITION": data.get("turn_position", ""),
+        "TURN_POSITION": str(data.get("turn_position", "")),
         "CUSTOMER_ID": data.get("customer_id", ""),
         "USER_EMAIL": data.get("user_email", ""),
         "RESPONSE_SOURCE": data.get("response_source", ""),
         "LOOKUP_STATUS": data.get("lookup_status", ""),
-        "USER_RESPONSE": data.get("user_response", "")
+        "USER_RESPONSE": data.get("user_response", ""),
+        "USER_REASON": data.get("user_reason", ""),
+        "LLM_IS_CORRECT": data.get("llm_is_correct"),
+        "LLM_HAS_SAFETY_VIOLATION": data.get("llm_has_safety_violation"),
+        "LLM_HAS_BRAND_VIOLATION": data.get("llm_has_brand_violation"),
+        "LLM_REASONING": data.get("llm_reasoning", ""),
+        "ingestion_timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
     }
-    try:
-        existing = []
-        if os.path.exists(RESPONSE_LOG_FILE):
-            with open(RESPONSE_LOG_FILE, 'r', encoding='utf-8') as f:
-                existing = json.load(f)
-        existing.append(entry)
-        with open(RESPONSE_LOG_FILE, 'w', encoding='utf-8') as f:
-            json.dump(existing, f, indent=2, ensure_ascii=False)
-        return jsonify({"status": "ok"})
-    except Exception as e:
-        print(f"--- Error saving response: {e} ---")
-        return jsonify({"error": str(e)}), 500
 
-# --- 6. Main execution block ---
+    result = bq_insert_row(BQ_MANUAL_REVIEW_TABLE, row)
+    if result.get("error"):
+        return jsonify(result), 500
+    return jsonify(result)
+
+
+@app.route("/health")
+def health():
+    """Health check. Verifies BQ CLI connectivity."""
+    test = run_bq_query("SELECT 1 AS ok")
+    if isinstance(test, dict) and test.get("error"):
+        return jsonify({"status": "error", "detail": test["error"]}), 503
+    return jsonify({"status": "ok"})
+
+
+# --- 13. Main ---
 if __name__ == "__main__":
     app.run(host=FLASK_HOST, port=FLASK_PORT, debug=FLASK_DEBUG)

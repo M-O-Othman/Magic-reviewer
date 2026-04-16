@@ -11,13 +11,16 @@
     <div class="banner-wrapper">
         <img src="{{ url_for('static', filename='banner.jpg') }}" alt="HSBC Banner" class="banner-img">
     </div>
-
     <div class="main-content">
         <header class="header">
-            <h1>Prep-Pack Magic Reviewer</h1>
-            <h2>CMB UK Data and Analytics</h2>
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h1>Prep-Pack Magic Reviewer</h1>
+                    <h2>CMB UK Data and Analytics</h2>
+                </div>
+                <div class="review-counter" id="review-counter">Reviews: 0</div>
+            </div>
         </header>
-
         <div class="date-range-section">
             <div class="row align-items-end g-3">
                 <div class="col-auto">
@@ -33,7 +36,6 @@
                 </div>
             </div>
         </div>
-
         <div class="row meta-grid gx-5">
             <div class="col-6 col-sm-4 col-md-2 meta-item"><label>SESSION_ID</label><div class="meta-value" id="session_id"></div></div>
             <div class="col-6 col-sm-4 col-md-2 meta-item"><label>TURN_POSITION</label><div class="meta-value" id="turn_position"></div></div>
@@ -42,7 +44,6 @@
             <div class="col-6 col-sm-4 col-md-2 meta-item"><label>RESPONSE_SOURCE</label><div class="meta-value" id="response_source"></div></div>
             <div class="col-6 col-sm-4 col-md-2 meta-item"><label>LOOKUP_STATUS</label><div class="meta-value" id="lookup_status"></div></div>
         </div>
-
         <div class="row g-4">
             <div class="col-lg-5 d-flex flex-column">
                 <div class="card content-card mb-4"><div class="card-body"><h5 class="card-title">User Question</h5><textarea id="user-question" class="text-display-area" readonly></textarea></div></div>
@@ -51,13 +52,15 @@
             <div class="col-lg-7 d-flex flex-column">
                 <div id="source-data-card" class="card large-card">
                     <div class="card-body">
-                        <h5 class="card-title">Source Data</h5>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h5 class="card-title mb-0">Source Data</h5>
+                            <input type="text" id="source-search" class="form-control form-control-sm source-search-input" placeholder="Search source data...">
+                        </div>
                         <div id="source-data" class="text-display-area"></div>
                     </div>
                 </div>
             </div>
         </div>
-
         <div class="row mt-4">
             <div class="col-12">
                 <div class="card llm-card">
@@ -68,205 +71,309 @@
                 </div>
             </div>
         </div>
-
         <div class="validation-section">
             <p>Do you think the agent answer is correct?</p>
             <div class="btn-group">
-                <button id="yes-btn" class="btn btn-outline-success">Yes</button>
-                <button id="no-btn" class="btn btn-outline-danger">No</button>
-                <button id="another-btn" class="btn btn-dark">Get Another Record</button>
+                <button id="yes-btn" class="btn btn-outline-success">Yes (Y)</button>
+                <button id="no-btn" class="btn btn-outline-danger">No (N)</button>
+                <button id="another-btn" class="btn btn-dark">Skip (S)</button>
+            </div>
+            <div id="reason-container" class="reason-container" style="display:none;">
+                <label for="reason-input" class="form-label mt-3">Why is the answer incorrect?</label>
+                <textarea id="reason-input" class="form-control reason-input" rows="2" placeholder="Describe the issue..."></textarea>
+                <button id="submit-no-btn" class="btn btn-outline-danger mt-2">Submit</button>
             </div>
             <p id="feedback-message" class="mt-3"></p>
         </div>
     </div>
-
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const getEl = id => document.getElementById(id);
-            const elements = {
-                sessionId: getEl('session_id'), turnPosition: getEl('turn_position'), customerId: getEl('customer_id'),
-                userEmail: getEl('user_email'), responseSource: getEl('response_source'), lookupStatus: getEl('lookup_status'),
-                userQuestion: getEl('user-question'), agentAnswer: getEl('agent-answer'),
-                sourceData: getEl('source-data'),
-                sourceDataCard: getEl('source-data-card'),
-                llmOpinion: getEl('llm-opinion'), llmCard: document.querySelector('.llm-card'),
-                fetchBtn: getEl('fetch-btn'), anotherBtn: getEl('another-btn'), feedbackMsg: getEl('feedback-message'),
-                startDate: getEl('start-date'), endDate: getEl('end-date')
-            };
+    document.addEventListener('DOMContentLoaded', () => {
+        const getEl = id => document.getElementById(id);
+        const el = {
+            sessionId: getEl('session_id'), turnPosition: getEl('turn_position'),
+            customerId: getEl('customer_id'), userEmail: getEl('user_email'),
+            responseSource: getEl('response_source'), lookupStatus: getEl('lookup_status'),
+            userQuestion: getEl('user-question'), agentAnswer: getEl('agent-answer'),
+            sourceData: getEl('source-data'), sourceDataCard: getEl('source-data-card'),
+            sourceSearch: getEl('source-search'),
+            llmOpinion: getEl('llm-opinion'), llmCard: document.querySelector('.llm-card'),
+            fetchBtn: getEl('fetch-btn'), anotherBtn: getEl('another-btn'),
+            yesBtn: getEl('yes-btn'), noBtn: getEl('no-btn'),
+            submitNoBtn: getEl('submit-no-btn'),
+            reasonContainer: getEl('reason-container'), reasonInput: getEl('reason-input'),
+            feedbackMsg: getEl('feedback-message'),
+            startDate: getEl('start-date'), endDate: getEl('end-date'),
+            reviewCounter: getEl('review-counter'),
+        };
 
-            // Set default date range: yesterday to today
-            const today = new Date();
-            const yesterday = new Date(today);
-            yesterday.setDate(today.getDate() - 1);
-            elements.startDate.value = yesterday.toISOString().split('T')[0];
-            elements.endDate.value = today.toISOString().split('T')[0];
+        const today = new Date();
+        const yesterday = new Date(today);
+        yesterday.setDate(today.getDate() - 1);
+        el.startDate.value = yesterday.toISOString().split('T')[0];
+        el.endDate.value = today.toISOString().split('T')[0];
 
-            let currentRecord = {};
+        let currentRecord = {};
+        let currentLlmResult = {};
+        let reviewCount = 0;
+        let isBusy = false;
+        let currentSourceJson = '';
 
-            function escapeHtml(text) {
-                const div = document.createElement('div');
-                div.textContent = text;
-                return div.innerHTML;
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function extractMarkedSegments(markedText) {
+            const segments = [];
+            const regex = /<Marked>([\s\S]*?)<\/Marked>/gi;
+            let match;
+            while ((match = regex.exec(markedText)) !== null) {
+                const text = match[1].trim();
+                if (text) segments.push(text);
             }
+            return segments;
+        }
 
-            function extractMarkedSegments(markedText) {
-                const segments = [];
-                const regex = /<Marked>([\s\S]*?)<\/Marked>/gi;
-                let match;
-                while ((match = regex.exec(markedText)) !== null) {
-                    const text = match[1].trim();
-                    if (text) segments.push(text);
+        function highlightInSource(sourceText, segments, isCorrect) {
+            if (!segments.length) return escapeHtml(sourceText);
+            const escaped = segments
+                .sort((a, b) => b.length - a.length)
+                .map(s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+            const regex = new RegExp('(' + escaped.join('|') + ')', 'gi');
+            const markClass = isCorrect ? 'marked-text correct' : 'marked-text';
+            const parts = sourceText.split(regex);
+            let html = '';
+            for (const part of parts) {
+                if (segments.some(s => s.toLowerCase() === part.toLowerCase())) {
+                    html += '<span class="' + markClass + '">' + escapeHtml(part) + '</span>';
+                } else {
+                    html += escapeHtml(part);
                 }
-                return segments;
             }
+            return html;
+        }
 
-            function highlightInSource(sourceText, segments, isCorrect) {
-                if (!segments.length) return escapeHtml(sourceText);
-
-                const escaped = segments
-                    .sort((a, b) => b.length - a.length)
-                    .map(s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-                const regex = new RegExp('(' + escaped.join('|') + ')', 'gi');
-
-                const markClass = isCorrect ? 'marked-text correct' : 'marked-text';
-                const parts = sourceText.split(regex);
-                let html = '';
-                for (const part of parts) {
-                    if (segments.some(s => s.toLowerCase() === part.toLowerCase())) {
-                        html += '<span class="' + markClass + '">' + escapeHtml(part) + '</span>';
-                    } else {
-                        html += escapeHtml(part);
-                    }
+        function highlightSearchInSource(sourceText, searchTerm) {
+            if (!searchTerm) return escapeHtml(sourceText);
+            const escaped = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp('(' + escaped + ')', 'gi');
+            const parts = sourceText.split(regex);
+            let html = '';
+            for (const part of parts) {
+                if (part.toLowerCase() === searchTerm.toLowerCase()) {
+                    html += '<span class="search-highlight">' + escapeHtml(part) + '</span>';
+                } else {
+                    html += escapeHtml(part);
                 }
-                return html;
+            }
+            return html;
+        }
+
+        function setBusy(busy) {
+            isBusy = busy;
+            el.fetchBtn.disabled = busy;
+            el.anotherBtn.disabled = busy;
+            el.yesBtn.disabled = busy;
+            el.noBtn.disabled = busy;
+        }
+
+        function updateCounter() {
+            reviewCount++;
+            el.reviewCounter.textContent = 'Reviews: ' + reviewCount;
+        }
+
+        function hideReasonInput() {
+            el.reasonContainer.style.display = 'none';
+            el.reasonInput.value = '';
+        }
+
+        async function saveResponse(userResponse, userReason) {
+            try {
+                const resp = await fetch('/save-response', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        session_id: currentRecord.session_id || '',
+                        turn_position: currentRecord.turn_position || '',
+                        customer_id: currentRecord.customer_id || '',
+                        user_email: currentRecord.user_email || '',
+                        response_source: currentRecord.response_source || '',
+                        lookup_status: currentRecord.lookup_status || '',
+                        user_response: userResponse,
+                        user_reason: userReason || '',
+                        llm_is_correct: currentLlmResult.is_correct,
+                        llm_has_safety_violation: currentLlmResult.has_safety_violation,
+                        llm_has_brand_violation: currentLlmResult.has_brand_violation,
+                        llm_reasoning: currentLlmResult.reasoning || '',
+                    })
+                });
+                const result = await resp.json();
+                if (!resp.ok || result.error) {
+                    el.feedbackMsg.textContent = 'Save failed: ' + (result.error || 'Unknown error');
+                    el.feedbackMsg.className = 'mt-3 text-danger';
+                    return false;
+                }
+                return true;
+            } catch (e) {
+                el.feedbackMsg.textContent = 'Save failed: ' + (e.message || e);
+                el.feedbackMsg.className = 'mt-3 text-danger';
+                return false;
+            }
+        }
+
+        async function handleVote(vote, reason) {
+            if (isBusy) return;
+            setBusy(true);
+            const ok = await saveResponse(vote, reason);
+            if (ok) {
+                updateCounter();
+                el.feedbackMsg.textContent = 'Saved. Loading next...';
+                el.feedbackMsg.className = 'mt-3 text-success';
+                hideReasonInput();
+                setTimeout(() => { fetchAndDisplayRecord(); }, 1500);
+            } else {
+                setBusy(false);
+            }
+        }
+
+        async function fetchAndDisplayRecord() {
+            const startDate = el.startDate.value;
+            const endDate = el.endDate.value;
+            if (!startDate || !endDate) {
+                el.feedbackMsg.textContent = 'Please select both start and end dates.';
+                el.feedbackMsg.className = 'mt-3 text-danger';
+                return;
             }
 
-            async function saveResponse(userResponse) {
+            setBusy(true);
+            el.feedbackMsg.className = 'mt-3';
+            el.feedbackMsg.textContent = 'Loading new record...';
+            hideReasonInput();
+            currentLlmResult = {};
+
+            try {
+                const response = await fetch(`/get-record?start_date=${startDate}&end_date=${endDate}`);
+                const data = await response.json();
+                if (!response.ok || data.error) throw new Error(data.error || `Server responded with status: ${response.status}`);
+
+                el.feedbackMsg.textContent = '';
+                currentRecord = {
+                    session_id: data.record?.session_id,
+                    turn_position: data.record?.turn_position,
+                    customer_id: data.record?.customer_id,
+                    user_email: data.record?.user_email,
+                    response_source: data.record?.response_source,
+                    lookup_status: data.record?.lookup_status,
+                };
+
+                el.sessionId.textContent = currentRecord.session_id || 'N/A';
+                el.turnPosition.textContent = currentRecord.turn_position || 'N/A';
+                el.customerId.textContent = currentRecord.customer_id || 'N/A';
+                el.userEmail.textContent = currentRecord.user_email || 'N/A';
+                el.responseSource.textContent = currentRecord.response_source || 'N/A';
+                el.lookupStatus.textContent = currentRecord.lookup_status || 'N/A';
+                el.userQuestion.value = data.record?.req || '';
+                el.agentAnswer.value = data.record?.response_text || '';
+
+                const originalSource = data.record?.customer_json_data || 'Not available';
                 try {
-                    await fetch('/save-response', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            session_id: currentRecord.session_id || '',
-                            turn_position: currentRecord.turn_position || '',
-                            customer_id: currentRecord.customer_id || '',
-                            user_email: currentRecord.user_email || '',
-                            response_source: currentRecord.response_source || '',
-                            lookup_status: currentRecord.lookup_status || '',
-                            user_response: userResponse
-                        })
-                    });
-                } catch (e) {
-                    console.error('Failed to save response:', e);
+                    currentSourceJson = JSON.stringify(JSON.parse(originalSource), null, 2);
+                } catch(e) {
+                    currentSourceJson = originalSource.replace(/\\n/g, '\n').replace(/\\t/g, '\t');
                 }
-            }
+                el.sourceData.textContent = currentSourceJson;
+                el.sourceSearch.value = '';
 
-            async function fetchAndDisplayRecord() {
-                const startDate = elements.startDate.value;
-                const endDate = elements.endDate.value;
+                el.llmOpinion.value = 'Evaluating...';
+                el.llmCard.classList.remove('correct', 'incorrect');
+                el.sourceDataCard.classList.remove('highlight-border');
 
-                if (!startDate || !endDate) {
-                    elements.feedbackMsg.textContent = 'Please select both start and end dates.';
-                    elements.feedbackMsg.className = 'mt-3 text-danger';
-                    return;
-                }
+                fetch('/llm-review', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data.record)
+                })
+                .then(r => r.json())
+                .then(llm => {
+                    currentLlmResult = llm;
+                    el.llmOpinion.value = llm.reasoning || 'No opinion.';
 
-                elements.feedbackMsg.className = 'mt-3';
-                elements.feedbackMsg.textContent = 'Loading new record...';
-                elements.fetchBtn.disabled = true;
-                elements.anotherBtn.disabled = true;
-
-                try {
-                    const response = await fetch(`/get-record?start_date=${startDate}&end_date=${endDate}`);
-                    const data = await response.json();
-
-                    if (!response.ok || data.error) throw new Error(data.error || `Server responded with status: ${response.status}`);
-
-                    elements.feedbackMsg.textContent = '';
-
-                    currentRecord = {
-                        session_id: data.record?.session_id,
-                        turn_position: data.record?.turn_position,
-                        customer_id: data.record?.customer_id,
-                        user_email: data.record?.user_email,
-                        response_source: data.record?.response_source,
-                        lookup_status: data.record?.lookup_status
-                    };
-
-                    elements.sessionId.textContent = currentRecord.session_id || 'N/A';
-                    elements.turnPosition.textContent = currentRecord.turn_position || 'N/A';
-                    elements.customerId.textContent = currentRecord.customer_id || 'N/A';
-                    elements.userEmail.textContent = currentRecord.user_email || 'N/A';
-                    elements.responseSource.textContent = currentRecord.response_source || 'N/A';
-                    elements.lookupStatus.textContent = currentRecord.lookup_status || 'N/A';
-                    elements.userQuestion.value = data.record?.req || '';
-                    elements.agentAnswer.value = data.record?.response_text || '';
-                    elements.llmOpinion.value = data.llm_review?.reasoning || 'LLM review not available.';
-
-                    const originalSource = data.record?.customer_json_data || 'Not available';
-                    let sourceJson = originalSource;
-                    try {
-                        sourceJson = JSON.stringify(JSON.parse(originalSource), null, 2);
-                    } catch(e) {
-                        sourceJson = originalSource.replace(/\\n/g, '\n').replace(/\\t/g, '\t');
-                    }
-
-                    const markedSource = data.llm_review?.marked_source_data;
-                    const isCorrect = data.llm_review?.is_correct === true;
+                    const markedSource = llm.marked_source_data;
+                    const isCorrect = llm.is_correct === true;
                     if (markedSource) {
                         const segments = extractMarkedSegments(markedSource);
-                        elements.sourceData.innerHTML = highlightInSource(sourceJson, segments, isCorrect);
-                    } else {
-                        elements.sourceData.textContent = sourceJson;
+                        el.sourceData.innerHTML = highlightInSource(currentSourceJson, segments, isCorrect);
                     }
 
-                    // Auto-scroll to first marked item, or to the end if none
-                    setTimeout(() => {
-                        const firstMark = elements.sourceData.querySelector('.marked-text');
-                        if (firstMark) {
-                            firstMark.scrollIntoView({ block: 'center', behavior: 'smooth' });
-                        } else {
-                            elements.sourceData.scrollTop = elements.sourceData.scrollHeight;
-                        }
-                    }, 100);
-
-                    const verdict = data.llm_review?.is_correct;
-                    elements.llmCard.classList.remove('correct', 'incorrect');
-                    elements.sourceDataCard.classList.remove('highlight-border');
-
-                    if (verdict === true) {
-                        elements.llmCard.classList.add('correct');
-                        elements.sourceDataCard.classList.add('highlight-border');
-                    } else if (verdict === false) {
-                        elements.llmCard.classList.add('incorrect');
-                        elements.sourceDataCard.classList.add('highlight-border');
+                    el.llmCard.classList.remove('correct', 'incorrect');
+                    el.sourceDataCard.classList.remove('highlight-border');
+                    if (llm.is_correct === true) {
+                        el.llmCard.classList.add('correct');
+                        el.sourceDataCard.classList.add('highlight-border');
+                    } else if (llm.is_correct === false) {
+                        el.llmCard.classList.add('incorrect');
+                        el.sourceDataCard.classList.add('highlight-border');
                     }
-
-                } catch (error) {
-                    elements.feedbackMsg.textContent = `Error: ${error.message}`;
-                    elements.feedbackMsg.className = 'mt-3 text-danger';
-                } finally {
-                    elements.fetchBtn.disabled = false;
-                    elements.anotherBtn.disabled = false;
-                }
+                })
+                .catch(err => {
+                    el.llmOpinion.value = 'LLM review failed: ' + (err.message || err);
+                });
+            } catch (error) {
+                el.feedbackMsg.textContent = 'Error: ' + error.message;
+                el.feedbackMsg.className = 'mt-3 text-danger';
+            } finally {
+                setBusy(false);
             }
+        }
 
-            getEl('fetch-btn').addEventListener('click', fetchAndDisplayRecord);
-            getEl('another-btn').addEventListener('click', () => {
-                saveResponse('Skip');
-                fetchAndDisplayRecord();
-            });
-            getEl('yes-btn').addEventListener('click', () => {
-                saveResponse('YES');
-                elements.feedbackMsg.textContent = "Thank you for your feedback!";
-                elements.feedbackMsg.className = 'mt-3 text-success';
-            });
-            getEl('no-btn').addEventListener('click', () => {
-                saveResponse('NO');
-                elements.feedbackMsg.textContent = "Thank you for your feedback!";
-                elements.feedbackMsg.className = 'mt-3 text-success';
-            });
+        // Source data search
+        el.sourceSearch.addEventListener('input', () => {
+            const term = el.sourceSearch.value.trim();
+            if (!currentSourceJson) return;
+            if (!term) {
+                el.sourceData.textContent = currentSourceJson;
+                return;
+            }
+            el.sourceData.innerHTML = highlightSearchInSource(currentSourceJson, term);
+            const first = el.sourceData.querySelector('.search-highlight');
+            if (first) first.scrollIntoView({ block: 'center', behavior: 'smooth' });
         });
+
+        // Button handlers
+        el.fetchBtn.addEventListener('click', fetchAndDisplayRecord);
+
+        el.anotherBtn.addEventListener('click', () => {
+            if (isBusy) return;
+            saveResponse('Skip', '');
+            fetchAndDisplayRecord();
+        });
+
+        el.yesBtn.addEventListener('click', () => handleVote('YES'));
+
+        el.noBtn.addEventListener('click', () => {
+            if (isBusy) return;
+            el.reasonContainer.style.display = 'block';
+            el.reasonInput.focus();
+        });
+
+        el.submitNoBtn.addEventListener('click', () => {
+            handleVote('NO', el.reasonInput.value.trim());
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (isBusy) return;
+            const tag = document.activeElement.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+            switch (e.key.toLowerCase()) {
+                case 'y': el.yesBtn.click(); break;
+                case 'n': el.noBtn.click(); break;
+                case 's': el.anotherBtn.click(); break;
+            }
+        });
+    });
     </script>
 </body>
 </html>

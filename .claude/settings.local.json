@@ -9,7 +9,9 @@
       "Bash(git push:*)",
       "Bash(python:*)",
       "Bash(pip install:*)",
-      "Bash(pip list:*)"
+      "Bash(pip list:*)",
+      "Bash(mkdir -p \"C:/Users/mothm/Downloads/magic-reviewer/Magic-reviewer/work/sessions\")",
+      "Bash(mkdir -p \"C:/Users/mothm/Downloads/magic-reviewer/Magic-reviewer/docs\")"
     ]
   }
 }

@@ -3,3 +3,6 @@ user_response.json
 __pycache__/
 *.pyc
 *.zip
+.pytest_cache/
+work/sessions/
+bigfile.txt
